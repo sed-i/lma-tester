@@ -1,0 +1,25 @@
+# Copyright 2021 Canonical Ltd.
+# See LICENSE file for licensing details.
+name: prometheus-tester
+description: |
+  This charm generates test data which is ingested by the
+  Prometheus operator
+summary: |
+  A charm to test the Prometheus operator
+tags:
+  - kubernetes
+  - prometheus
+  - monitoring
+platforms:
+  - kubernetes
+bases:
+  - name: ubuntu
+    channel: 20.04/stable
+containers:
+  prometheus-tester:
+    resource: prometheus-tester-image
+resources:
+  prometheus-tester-image:
+    type: oci-image
+    description: upstream docker image for mongodb
+    upstream-source: 'docbthomas/prometheus-tester:latest'
