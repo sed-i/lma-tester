@@ -9,7 +9,8 @@ import logging
 from ops.charm import CharmBase
 from ops.main import main
 from ops.framework import StoredState
-from ops.model import ActiveStatus
+from ops.model import ActiveStatus, ModelError
+from ops.pebble import ConnectionError, ServiceStatus
 
 logger = logging.getLogger(__name__)
 
@@ -21,19 +22,60 @@ class PrometheusTesterCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.framework.observe(self.on.install, self._on_install)
+        self.framework.observe(self.on.prometheus_tester_pebble_ready,
+                               self._on_prometheus_tester_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.show_config_action, self._on_show_config_action)
 
-    def _on_install(self, _):
+    def _on_prometheus_tester_pebble_ready(self, event):
+        container = event.workload
+        layer = self._tester_pebble_layer()
+        container.add_layer("tester", layer, combine=True)
+        container.autostart()
         self.unit.status = ActiveStatus()
 
-    def _on_config_changed(self, _):
-        pass
+    def _on_config_changed(self, event):
+        container = self.unit.get_container("prometheus-tester")
+        try:
+            service = container.get_service("tester")
+        except ConnectionError:
+            logger.info("Pebble API is not yet ready")
+            return
+        except ModelError:
+            logger.info("tester service is not yet ready")
+            return
+
+        plan = container.get_plan()
+        layer = self._tester_pebble_layer()
+        if plan.service["tester"] != layer["services"]["tester"]:
+            container.add_layer("tester", layer, combine=True)
+            logger.debug("Added tester layer to container")
+
+        if service.is_running():
+            container.stop("tester")
+
+        container.start("tester")
+        logger.info("Restarted tester service")
+
+        self.unit.status = ActiveStatus()
 
     def _on_show_config_action(self, event):
         event.set_results({"config": self.model.config})
 
+    def _tester_pebble_layer(self):
+        layer = {
+            "summary": "prometheus tester",
+            "description": "a test data generator for Prometheus",
+            "services": {
+                "tester": {
+                    "override": "replace",
+                    "summary": "tester service",
+                    "command": "python /tester/tester.py",
+                    "startup": "enabled"
+                }
+            }
+        }
+        return layer
 
 if __name__ == "__main__":
     main(PrometheusTesterCharm)
