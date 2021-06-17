@@ -25,4 +25,4 @@ resources:
     upstream-source: 'docbthomas/prometheus-tester:latest'
 requires:
   monitoring:
-    interface: prometheus
+    interface: prometheus_scrape
