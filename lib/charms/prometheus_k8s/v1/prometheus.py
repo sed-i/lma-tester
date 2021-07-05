@@ -50,7 +50,7 @@ as you develop newer releases of you charm. If the version string can
 be determined at run time by inspecting the actual deployed version of
 your charmed application, this would be ideal.
 
-An instantiated `:class:PrometheusConsumer` object may be used to add
+An instantiated `PrometheusConsumer` object may be used to add
 or remove Prometheus scrape targets.  Adding and removing scrape
 targets may be done using the `add_endpoint()` and `remove_endpoint()`
 methods. Both these methods require the host address (usually IP) of
@@ -81,11 +81,11 @@ removed.
 
 ## Provider Library Usage
 
-The `:class:PrometheusProvider` object may be used by Prometheus
+The `PrometheusProvider` object may be used by Prometheus
 charms to manage relations with their scrape targets. For this
 purposes a Prometheus charm needs to do two things
 
-1. Instantiate the `:class:PrometheusProvider` object providing it
+1. Instantiate the `PrometheusProvider` object providing it
 with three key pieces of information
 
 - Name of the relation that the Prometheus charm uses to interact with
@@ -104,7 +104,7 @@ with three key pieces of information
   Prometheus.
 
 For example a Prometheus charm may instantiate the
-`:class:PrometheusProvider` in its constructor as follows
+`PrometheusProvider` in its constructor as follows
 
     from charms.prometheus_k8s.v0.prometheus import PrometheusProvider
 
@@ -117,7 +117,7 @@ For example a Prometheus charm may instantiate the
         ...
 
 2. A Prometheus charm also needs to respond to the
-`:class:TargetsChanged` event of the `:class:PrometheusProvider` by adding itself as
+`TargetsChanged` event of the `PrometheusProvider` by adding itself as
 and observer for these events, as in
 
     self.framework.observe(
@@ -125,15 +125,15 @@ and observer for these events, as in
         self._on_scrape_targets_changed,
     )
 
-In responding to the `:class:TargetsChanged` event the Prometheus
+In responding to the `TargetsChanged` event the Prometheus
 charm must update the Prometheus configuration so that any new scrape
 targets are added and/or old ones removed from the list of scraped
-endpoints. For this purpose the `:class:PrometheusProvider` object
+endpoints. For this purpose the `PrometheusProvider` object
 exposes a `jobs()` method that returns a list of scrape jobs. Each
 element of this list is the Prometheus scrape configuration for that
-job. In order to the Prometheus configuration, the Prometheus charm
-needs to replace the current list of jobs with the list provided by
-`jobs()` as follows
+job. In order to update the Prometheus configuration, the Prometheus
+charm needs to replace the current list of jobs with the list provided
+by `jobs()` as follows
 
     def _on_scrape_targets_changed(self, event):
         ...
@@ -164,6 +164,11 @@ LIBPATCH = 0
 logger = logging.getLogger(__name__)
 
 
+class MissingRelation(Exception):
+    """Exception raised when no Prometheus relatiion is found"""
+    pass
+
+
 class TargetsChanged(EventBase):
     """Event emitted when Prometheus scrape targets change."""
 
@@ -181,7 +186,7 @@ class TargetsChanged(EventBase):
 
 
 class MonitoringEvents(ObjectEvents):
-    """Event descriptor for events raised by :class:`PrometheusProvider`."""
+    """Event descriptor for events raised by `PrometheusProvider`."""
 
     targets_changed = EventSource(TargetsChanged)
 
@@ -194,14 +199,14 @@ class PrometheusProvider(ProviderBase):
         """A Prometheus based Monitoring service provider.
 
         Args:
-            charm: a :class:`CharmBase` instance that manages this
+            charm: a `CharmBase` instance that manages this
                 instance of the Prometheus service.
             name: string name of the relation that is provides the
                 Prometheus monitoring service.
             service: string name of service provided. This is used by
-                :class:`PrometheusConsumer` to validate this service as
+                `PrometheusConsumer` to validate this service as
                 acceptable. Hence the string name must match one of the
-                acceptable service names in the :class:`PrometheusConsumer`s
+                acceptable service names in the `PrometheusConsumer`s
                 `consumes` argument. Typically this string is just "prometheus".
             version: a string providing the semantic version of the Prometheus
                 application being provided.
@@ -223,7 +228,7 @@ class PrometheusProvider(ProviderBase):
         Anytime there are changes in relations between Prometheus
         provider and consumer charms the scrape job config is updated
         and the Prometheus charm is informed, through a
-        :class:`TargetsChanged` event. The Prometheus charm can then
+        `TargetsChanged` event. The Prometheus charm can then
         choose to update its scrape configuration.
         """
         if not self._charm.unit.is_leader():
@@ -232,24 +237,11 @@ class PrometheusProvider(ProviderBase):
         rel_id = event.relation.id
         data = event.relation.data[event.app]
 
-        targets = json.loads(data.get("targets", "[]"))
-        if not targets:
+        job_config = data.get("jobs", None)
+        if job_config is None:
             return
 
-        job_name = data.get("job_name", "")
-        unique_name = "juju_{}_{}_{}".format(
-            self._charm.model.name,
-            self._charm.app.name,
-            rel_id
-        )
-        if job_name:
-            job_name += "_{}".format(unique_name)
-        else:
-            job_name = unique_name
-
-        job_config = {"job_name": job_name, "static_configs": [{"targets": targets}]}
-
-        self._stored.jobs["rel_id"] = json.dumps(job_config)
+        self._stored.jobs[rel_id] = job_config
         logger.debug("New job config on relation change : %s", job_config)
         self.on.targets_changed.emit()
 
@@ -258,7 +250,7 @@ class PrometheusProvider(ProviderBase):
 
         When a Prometheus consumer departs the scrape configuration
         for that consumer is remove from the list of scrape jobs and
-        the Prometheus is informed through a :class:`TargetsChanged`
+        the Prometheus is informed through a `TargetsChanged`
         event.
         """
         if not self._charm.unit.is_leader():
@@ -277,7 +269,7 @@ class PrometheusProvider(ProviderBase):
         Returns:
 
             A list consisting of all the static scrape configurations
-            for each related :class:`PrometheusConsumer` that has specified
+            for each related `PrometheusConsumer` that has specified
             its scrape targets.
         """
         scrape_jobs = []
@@ -293,22 +285,22 @@ class PrometheusConsumer(ConsumerBase):
     def __init__(self, charm, name, consumes, multi=False):
         """Construct a Prometheus charm client.
 
-        The :class:`PrometheusConsumer` object provides an interface
+        The `PrometheusConsumer` object provides an interface
         to Prometheus. This interface supports providing additional
         scrape targets to the Prometheus monitoring service. For
         example suppose a charm's units exposes Prometheus metrics on
         port 8000. This charm may then have its metrics aggregated by
         a related Prometheus charm by instantiating a
-        :class:`PrometheusConsumer` object and adding its units as
+        `PrometheusConsumer` object and adding its units as
         scrape endpoints as follows
 
             self.prometheus = PrometheusConsumer(self, "monitoring", {"prometheus": ">=2.0"})
-            self.prometheus.add_endpoint(<ip-adderss>, port=8000)
+            self.prometheus.add_endpoint(<ip-address>, port=8000)
 
         Args:
 
-            charm: a :class:`CharmBase` object that manages this
-                :class:`PrometheusConsumer` object. Typically this is
+            charm: a `CharmBase` object that manages this
+                `PrometheusConsumer` object. Typically this is
                 `self` in the instantiating class.
             name: a string name of the relation between `charm` and
                 the Prometheus charmed service.
@@ -343,11 +335,14 @@ class PrometheusConsumer(ConsumerBase):
             rel_id: an optional integer providing the relation ID for
                 the related Prometheus monitoring service
                 provider. This is only necessary if the
-                :class:`PrometheusConsumer` has been instantiated in
+                `PrometheusConsumer` has been instantiated in
                 `multi` mode.
         """
         if rel_id is None:
             rel_id = self.relation_id
+
+        if not rel_id:
+            raise MissingRelation("No Prometheus relation found")
 
         targets = self._stored.targets.get(rel_id, [])
         if address in targets:
@@ -368,7 +363,7 @@ class PrometheusConsumer(ConsumerBase):
             rel_id: an optional integer providing the relation ID for
                 the related Prometheus monitoring service
                 provider. This is only necessary if the
-                :class:`PrometheusConsumer` has been instantiated in
+                `PrometheusConsumer` has been instantiated in
                 `multi` mode.
         """
         if rel_id is None:
@@ -382,6 +377,21 @@ class PrometheusConsumer(ConsumerBase):
         targets.remove(target)
         self._update_targets(targets, rel_id)
 
+    @property
+    def endpoints(self, rel_id=None):
+        """Returns a list of Prometheus scrape target endpoints.
+        Args:
+            rel_id: an optional integer providing the relation ID for
+                the related Prometheus monitoring service
+                provider. This is only necessary if the
+                `PrometheusConsumer` has been instantiated in
+                `multi` mode.
+        """
+
+        if rel_id is None:
+            rel_id = self.relation_id
+        return self._stored.targets.get(rel_id, [])
+
     def _set_targets(self, event):
         """Set the Prometheus scrape targets."""
         rel_id = event.relation.id
@@ -389,9 +399,9 @@ class PrometheusConsumer(ConsumerBase):
             return
 
         logger.debug("Setting scrape targets : %s", self._stored.targets[rel_id])
-        event.relation.data[self._charm.app]["targets"] = json.dumps(
-            list(self._stored.targets[rel_id])
-        )
+        event.relation.data[self._charm.app]["jobs"] = self._static_config(
+            self._stored.targets[rel_id],
+            rel_id)
 
     def _update_targets(self, targets, rel_id):
         """Update the Prometheus scrape targets."""
@@ -399,4 +409,30 @@ class PrometheusConsumer(ConsumerBase):
         rel = self.framework.model.get_relation(self._relation_name, rel_id)
 
         logger.debug("Updating scrape targets to : %s", targets)
-        rel.data[self._charm.app]["targets"] = json.dumps(list(targets))
+        rel.data[self._charm.app]["jobs"] = self._static_config(targets, rel_id)
+
+    def _static_config(self, targets, rel_id):
+        """Create a static scrape config
+
+        Args:
+            target - address of static scrape target
+            rel_id - relation id
+        """
+        name = "juju_prometheus_scrape_{}_{}_{}".format(
+            self._charm.model.name,
+            self._charm.model.app.name,
+            rel_id
+        )
+        config = {
+            "job_name": name,
+            "static_configs": [{
+                "targets": list(targets),
+                "labels": {
+                    "juju_model_name": "{}".format(self._charm.model.name),
+                    "juju_app_name": "{}".format(self._charm.model.app.name),
+                    "juju_relation_id": "{}".format(rel_id)
+                }
+            }]
+        }
+
+        return json.dumps(config)
