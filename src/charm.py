@@ -24,8 +24,8 @@ class PrometheusTesterCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self._stored.set_default(monitoring_enabled=False)
-
-        self.prometheus = PrometheusConsumer(self, "monitoring", self._consumes)
+        scrape_config = {"static_scrape_port": 8000}
+        self.prometheus = PrometheusConsumer(self, "monitoring", self._consumes, config=scrape_config)
         self.framework.observe(self.on.prometheus_tester_pebble_ready,
                                self._on_prometheus_tester_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
@@ -69,7 +69,6 @@ class PrometheusTesterCharm(CharmBase):
         if rel and not self._stored.monitoring_enabled:
             binding = self.model.get_binding(rel)
             bind_address = str(binding.network.bind_address)
-            self.prometheus.add_endpoint(bind_address, port=8000)
             self._stored.monitoring_enabled = True
             logger.debug("NETWORK : %s", bind_address)
 
