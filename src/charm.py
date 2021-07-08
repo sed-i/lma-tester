@@ -25,7 +25,7 @@ class PrometheusTesterCharm(CharmBase):
         super().__init__(*args)
         self._stored.set_default(monitoring_enabled=False)
         scrape_config = {"static_scrape_port": 8000}
-        self.prometheus = PrometheusConsumer(self, "monitoring", self._consumes, config=scrape_config)
+        self.prometheus = PrometheusConsumer(self, "monitoring", self._consumes, "prometheus_tester", config=scrape_config)
         self.framework.observe(self.on.prometheus_tester_pebble_ready,
                                self._on_prometheus_tester_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
