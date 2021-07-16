@@ -36,7 +36,9 @@ class PrometheusTesterCharm(CharmBase):
                 ]
             }
         ]
-        self.prometheus = PrometheusConsumer(self, "monitoring", self._consumes, "prometheus_tester", jobs=jobs)
+        self.prometheus = PrometheusConsumer(self, "monitoring", self._consumes,
+                                             self.on.prometheus_tester_pebble_ready,
+                                             jobs=jobs)
         self.framework.observe(self.on.prometheus_tester_pebble_ready,
                                self._on_prometheus_tester_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
