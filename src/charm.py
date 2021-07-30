@@ -38,7 +38,7 @@ class PrometheusTesterCharm(CharmBase):
         ]
         self.prometheus = PrometheusConsumer(self, "monitoring", self._consumes,
                                              self.on.prometheus_tester_pebble_ready,
-                                             jobs=jobs, alerts=self._alerts)
+                                             jobs=jobs)
         self.framework.observe(self.on.prometheus_tester_pebble_ready,
                                self._on_prometheus_tester_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
@@ -106,30 +106,6 @@ class PrometheusTesterCharm(CharmBase):
     @property
     def _consumes(self):
         return {"prometheus": ">=2.0"}
-
-    @property
-    def _alerts(self):
-        groups = [
-            {
-                "name": "prometheus-tester",
-                "rules": [
-                    {
-                        "alert": "InstanceDown",
-                        "expr": "up == 0",
-                        "for": "0m",
-                        "labels": {
-                            "severity": "High",
-                        },
-                        "annotations": {
-                            "summary": "Instance {{ $labels.instance }} down",
-                            "description": "{{ $labels.instance }} of job "
-                            "{{ $labels.job }} has been down for more than 5 minutes."
-                        }
-                    }
-                ]
-            }
-        ]
-        return groups
 
 
 if __name__ == "__main__":
