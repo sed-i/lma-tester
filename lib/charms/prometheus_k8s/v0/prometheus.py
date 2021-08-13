@@ -247,9 +247,9 @@ related consumer charms and enabling corresponding alerts within the
 provider charm.  Alert rules are automatically gathered by Consumer
 charms when using this library, from a directory conventionally named
 `prometheus_alert_rules`. This directory must reside at the top level
-in the Consumer charm. Each file in this directory is assumed to be a
-single alert rule in YAML format. The format of this alert rule
-conforms to [Prometheus
+in the `src` folder of the consumer charm. Each file in this directory
+is assumed to be a single alert rule in YAML format. The format of this
+alert rule conforms to [Prometheus
 documentation](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).
 An example of the contents of one such file is shown below.
 
@@ -302,11 +302,12 @@ relation data provide eponymous information.
 """
 
 import json
-import yaml
 import logging
 from pathlib import Path
-from ops.framework import EventSource, EventBase, ObjectEvents
-from ops.relation import ProviderBase, ConsumerBase
+
+import yaml
+from ops.framework import EventBase, EventSource, ObjectEvents
+from ops.relation import ConsumerBase, ProviderBase
 
 # The unique Charmhub library identifier, never change it
 LIBID = "bc84295fef5f4049878f07b131968ee2"
@@ -316,7 +317,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 3
+LIBPATCH = 4
 
 
 logger = logging.getLogger(__name__)
@@ -704,9 +705,16 @@ class PrometheusProvider(ProviderBase):
 
 
 class PrometheusConsumer(ConsumerBase):
-    _ALERT_RULES_PATH = "prometheus_alert_rules"
-
-    def __init__(self, charm, name, consumes, service_event, jobs=[], multi=False):
+    def __init__(
+        self,
+        charm,
+        name,
+        consumes,
+        service_event,
+        jobs=[],
+        multi=False,
+        alert_rules_path="src/prometheus_alert_rules",
+    ):
         """Construct a Prometheus charm client.
 
         The `PrometheusConsumer` object provides scrape configurations
@@ -729,7 +737,7 @@ class PrometheusConsumer(ConsumerBase):
         - `scrape_jobs`
         - `alert_rules`
 
-        The `alert_rules` are ready from `*.rule` files in the `prometheus_alert_rules`
+        The `alert_rules` are ready from `*.rule` files in the `src/prometheus_alert_rules`
         directory. If the syntax of these rules is invalid `PrometheusConsumer` logs
         an error and does not load the particular rule.
 
@@ -757,10 +765,14 @@ class PrometheusConsumer(ConsumerBase):
             multi: an optional (default False) flag to indicate if
                 this object must support interaction with multiple
                 Prometheus monitoring service providers.
+            alert_rules_path: an optional path for the location of alert rules
+                files.  Defaults to "src/prometheus_alert_rules" at the top level
+                of the charm repository.
         """
         super().__init__(charm, name, consumes, multi)
 
         self._charm = charm
+        self._ALERT_RULES_PATH = alert_rules_path
         self._service_event = service_event
         self._relation_name = name
         # Sanitize job configurations to the supported subset of parameters
@@ -769,6 +781,7 @@ class PrometheusConsumer(ConsumerBase):
 
         events = self._charm.on[self._relation_name]
         self.framework.observe(events.relation_joined, self._set_scrape_metadata)
+        self.framework.observe(events.relation_changed, self._set_scrape_metadata)
         self.framework.observe(self._service_event, self._set_unit_ip)
 
     def _set_scrape_metadata(self, event):
@@ -869,6 +882,7 @@ class PrometheusConsumer(ConsumerBase):
             if not path.is_file():
                 continue
 
+            logger.debug("Reading alert rule from %s", path)
             with path.open() as rule_file:
                 # Load a list of rules from file then add labels and filters
                 try:
