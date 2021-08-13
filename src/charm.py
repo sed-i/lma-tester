@@ -9,7 +9,7 @@ import logging
 from ops.charm import CharmBase
 from ops.main import main
 from ops.framework import StoredState
-from ops.model import ActiveStatus, ModelError
+from ops.model import ActiveStatus, WaitingStatus
 from ops.pebble import ConnectionError
 from charms.prometheus_k8s.v0.prometheus import PrometheusConsumer
 
@@ -37,53 +37,48 @@ class PrometheusTesterCharm(CharmBase):
             }
         ]
         self.prometheus = PrometheusConsumer(self, "monitoring", self._consumes,
-                                             self.on.prometheus_tester_pebble_ready,
+                                             self.on.start,
                                              jobs=jobs)
         self.framework.observe(self.on.prometheus_tester_pebble_ready,
-                               self._on_prometheus_tester_pebble_ready)
-        self.framework.observe(self.on.config_changed, self._on_config_changed)
-        self.framework.observe(self.on.update_status, self._on_update_status)
+                               self._ensure_application_runs)
+        self.framework.observe(self.on.upgrade_charm, self._ensure_application_runs)
+        self.framework.observe(self.on.update_status, self._ensure_application_runs)
+        self.framework.observe(self.on.config_changed, self._ensure_application_runs)
         self.framework.observe(self.on.show_config_action, self._on_show_config_action)
 
-    def _on_prometheus_tester_pebble_ready(self, event):
-        container = event.workload
-        layer = self._tester_pebble_layer()
-        container.add_layer("tester", layer, combine=True)
-        container.autostart()
-        self.unit.status = ActiveStatus()
-
-    def _on_config_changed(self, event):
-        container = self.unit.get_container("prometheus-tester")
-        try:
-            service = container.get_service("tester")
-        except ConnectionError:
-            logger.info("Pebble API is not yet ready")
-            return
-        except ModelError:
-            logger.info("tester service is not yet ready")
-            return
-
-        plan = container.get_plan()
-        layer = self._tester_pebble_layer()
-        if plan.service["tester"] != layer["services"]["tester"]:
-            container.add_layer("tester", layer, combine=True)
-            logger.debug("Added tester layer to container")
-
-        if service.is_running():
-            container.stop("tester")
-
-        container.start("tester")
-        logger.info("Restarted tester service")
-
-        self.unit.status = ActiveStatus()
-
-    def _on_update_status(self, event):
+    def _ensure_application_runs(self, event):
         rel = self.framework.model.get_relation("monitoring")
         if rel and not self._stored.monitoring_enabled:
             binding = self.model.get_binding(rel)
             bind_address = str(binding.network.bind_address)
             self._stored.monitoring_enabled = True
             logger.debug("NETWORK : %s", bind_address)
+
+        container = self.unit.get_container("prometheus-tester")
+
+        if container.is_ready():
+            layer = self._tester_pebble_layer()
+            container.add_layer("tester", layer, combine=True)
+
+            try:
+                service = container.get_service("tester")
+            except ConnectionError:
+                logger.debug("Pebble API is not yet ready")
+                event.defer()
+                return
+
+            if service.is_running():
+                container.stop("tester")
+                logger.info("Restarted tester service")
+            else:
+                logger.info("Started tester service")
+
+            container.start("tester")
+
+            self.unit.status = ActiveStatus()
+        else:
+            logger.debug("Pebble in the prometheus-tester container is not ready")
+            self.unit.status = WaitingStatus()
 
     def _on_show_config_action(self, event):
         event.set_results({"config": self.model.config})
@@ -97,7 +92,11 @@ class PrometheusTesterCharm(CharmBase):
                     "override": "replace",
                     "summary": "tester service",
                     "command": "python /tester/tester.py",
-                    "startup": "enabled"
+                    "startup": "enabled",
+                    "environment": {
+                        "TESTER_TRIGGER_GAUGE_1": self.config["trigger_gauge_1_alert"] or "",
+                        "TESTER_TRIGGER_GAUGE_2": self.config["trigger_gauge_2_alert"] or "",
+                    }
                 }
             }
         }

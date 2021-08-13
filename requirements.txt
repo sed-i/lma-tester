@@ -1,2 +1,3 @@
 git+git://github.com/canonical/operator
 semantic_version
+prometheus_client

@@ -4,5 +4,13 @@
 options:
   duration:
     default: 1
-    description: "Number of hours for which data should be genrated"
+    description: "Number of hours for which data should be generated"
     type: int
+  trigger_gauge_1_alert:
+    default: false
+    description: "Whether to trigger the gauge_1 alert rule"
+    type: boolean
+  trigger_gauge_2_alert:
+    default: false
+    description: "Whether to trigger the gauge_1 alert rule"
+    type: boolean
