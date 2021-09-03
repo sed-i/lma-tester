@@ -1,4 +1,3 @@
-import os
 import random
 import time
 
@@ -9,11 +8,7 @@ from prometheus_client import start_http_server, Gauge, Summary
 REQUEST_TIME = Summary('request_processing_seconds',
                        'Time spent processing request')
 
-ALERT_CONDITION_1 = Gauge('gauge_1',
-                          'Completely meaningless value to trigger alerts')
-
-ALERT_CONDITION_2 = Gauge('gauge_2',
-                          'Completely meaningless value to trigger alerts')
+dummy_gauges = [Gauge(f"gauge_{i}", f"Dummy gauge {i}") for i in range(20)]
 
 
 @REQUEST_TIME.time()
@@ -34,15 +29,8 @@ def main(port=8000):
     while True:
         process_request(random.random())
 
-        if os.getenv("TESTER_TRIGGER_GAUGE_1", ""):
-            ALERT_CONDITION_1.set(random.randint(11, 100))
-        else:
-            ALERT_CONDITION_1.set(random.randint(1, 9))
-
-        if os.getenv("TESTER_TRIGGER_GAUGE_2", ""):
-            ALERT_CONDITION_2.set(random.randint(11, 100))
-        else:
-            ALERT_CONDITION_2.set(random.randint(1, 9))
+        for gauge in dummy_gauges:
+            gauge.set(random.randint(1, 100))
 
 
 if __name__ == '__main__':

@@ -1,3 +1,2 @@
-git+git://github.com/canonical/operator
-semantic_version
+git+https://github.com/canonical/operator
 prometheus_client

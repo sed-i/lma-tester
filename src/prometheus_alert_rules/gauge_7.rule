@@ -1,0 +1,8 @@
+alert: Gauge_7_Trigger
+expr: gauge_7{%%juju_topology%%} > 10
+for: 0m
+labels:
+  severity: High
+annotations:
+  summary: "Instance {{ $labels.instance }} has gauge_7 higher than 10"
+  description: "{{ $labels.instance }} of job {{ $labels.job }} has the value of gauge_7 higher than 10"
