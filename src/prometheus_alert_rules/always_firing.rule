@@ -1,0 +1,8 @@
+alert: AlwaysFiring
+expr: process_cpu_seconds_total{%%juju_topology%%} > -1
+for: 0m
+labels:
+  severity: Low
+annotations:
+  summary: "Instance {{ $labels.instance }} dummy alarm (always firing)"
+  description: "{{ $labels.instance }} of job {{ $labels.job }} is firing the dummy alarm."
