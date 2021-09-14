@@ -1,12 +1,12 @@
 [project]
-name = "prometheus-tester"
-description = "Kubernetes charm for testing prometheus endpoints"
+name = "lma-tester"
+description = "Kubernetes charm for testing the lma bundle"
 license = "Apache 2.0"
 python = "^3.8"
 readme = "README.md"
 homepage = "https://charmhub.io/karma-k8s"
-repository = "https://github.com/sed-i/prometheus-tester"
-documentation = "https://github.com/sed-i/prometheus-tester"
+repository = "https://github.com/sed-i/lma-tester"
+documentation = "https://github.com/sed-i/lma-tester"
 
 # Testing tools configuration
 [tool.coverage.run]

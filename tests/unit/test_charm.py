@@ -6,12 +6,12 @@ import unittest
 
 from ops.testing import Harness
 
-from charm import PrometheusTesterCharm
+from charm import LmaTesterCharm
 
 
 class TestCharm(unittest.TestCase):
     def test_charm(self):
-        harness = Harness(PrometheusTesterCharm)
+        harness = Harness(LmaTesterCharm)
         self.addCleanup(harness.cleanup)
         harness.begin()
         pass

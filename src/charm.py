@@ -16,7 +16,7 @@ from ops.pebble import ConnectionError
 logger = logging.getLogger(__name__)
 
 
-class PrometheusTesterCharm(CharmBase):
+class LmaTesterCharm(CharmBase):
     """Charm the service."""
 
     _relation_name = "metrics-endpoint"
@@ -27,10 +27,10 @@ class PrometheusTesterCharm(CharmBase):
         self._stored.set_default(monitoring_enabled=False)
         jobs = [{"static_configs": [{"targets": ["*:8000"], "labels": {"status": "testing"}}]}]
         self.metrics_endpoint = MetricsEndpointProvider(
-            self, self._relation_name, self.on.prometheus_tester_pebble_ready, jobs=jobs
+            self, self._relation_name, self.on.lma_tester_pebble_ready, jobs=jobs
         )
         self.framework.observe(
-            self.on.prometheus_tester_pebble_ready, self._ensure_application_runs
+            self.on.lma_tester_pebble_ready, self._ensure_application_runs
         )
         self.framework.observe(self.on.upgrade_charm, self._ensure_application_runs)
         self.framework.observe(self.on.update_status, self._ensure_application_runs)
@@ -45,9 +45,9 @@ class PrometheusTesterCharm(CharmBase):
             self._stored.monitoring_enabled = True
             logger.debug("NETWORK : %s", bind_address)
 
-        container = self.unit.get_container("prometheus-tester")
+        container = self.unit.get_container("lma-tester")
 
-        if container.is_ready():
+        if container.can_connect():
             layer = self._tester_pebble_layer()
             container.add_layer("tester", layer, combine=True)
 
@@ -68,7 +68,7 @@ class PrometheusTesterCharm(CharmBase):
 
             self.unit.status = ActiveStatus()
         else:
-            logger.debug("Pebble in the prometheus-tester container is not ready")
+            logger.debug("Pebble in the lma-tester container is not ready")
             self.unit.status = WaitingStatus("Waiting for pebble")
 
     def _on_show_config_action(self, event):
@@ -87,7 +87,7 @@ class PrometheusTesterCharm(CharmBase):
                     "environment": {
                         "TESTER_TRIGGER_GAUGE_1": self.config["trigger_gauge_1_alert"] or "",
                         "TESTER_TRIGGER_GAUGE_2": self.config["trigger_gauge_2_alert"] or "",
-                        "PYTHONPATH": "/var/lib/juju/agents/unit-prometheus-tester-0/charm/venv",
+                        "PYTHONPATH": "/var/lib/juju/agents/unit-lma-tester-0/charm/venv",
                     },
                 }
             },
@@ -100,4 +100,4 @@ class PrometheusTesterCharm(CharmBase):
 
 
 if __name__ == "__main__":
-    main(PrometheusTesterCharm)
+    main(LmaTesterCharm)
