@@ -1,0 +1,17 @@
+# Ref: https://github.com/actions/labeler
+
+# Add 'root' label to any root file changes
+root:
+- '*'
+
+# Add 'tests' label to any change to files within the tests dir
+tests:
+- tests/**/*
+
+# Add 'charm' label to any change to files within the src dir
+charm:
+- src/**/*
+
+# Add 'lib' label to any change to files within the lib dir
+lib:
+- lib/**/*
