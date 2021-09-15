@@ -29,9 +29,7 @@ class LmaTesterCharm(CharmBase):
         self.metrics_endpoint = MetricsEndpointProvider(
             self, self._relation_name, self.on.lma_tester_pebble_ready, jobs=jobs
         )
-        self.framework.observe(
-            self.on.lma_tester_pebble_ready, self._ensure_application_runs
-        )
+        self.framework.observe(self.on.lma_tester_pebble_ready, self._ensure_application_runs)
         self.framework.observe(self.on.upgrade_charm, self._ensure_application_runs)
         self.framework.observe(self.on.update_status, self._ensure_application_runs)
         self.framework.observe(self.on.config_changed, self._ensure_application_runs)
