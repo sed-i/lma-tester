@@ -13,8 +13,7 @@ resources:
   lma-tester-image:
     type: oci-image
     description: upstream docker image for mongodb
-    # TODO rename
-    upstream-source: cannelloni/prometheus-tester
+    upstream-source: ghcr.io/sed-i/lma-tester-alerts:main
 provides:
   metrics-endpoint:
     interface: prometheus_scrape
