@@ -12,7 +12,7 @@ containers:
 resources:
   lma-tester-image:
     type: oci-image
-    description: upstream docker image for mongodb
+    description: image for the scrapeable alarm generator
     upstream-source: ghcr.io/sed-i/lma-tester-alerts:main
 provides:
   metrics-endpoint:
